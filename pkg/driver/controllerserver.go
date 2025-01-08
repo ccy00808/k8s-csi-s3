@@ -22,11 +22,12 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strconv"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/yandex-cloud/k8s-csi-s3/pkg/mounter"
 	"github.com/yandex-cloud/k8s-csi-s3/pkg/s3"
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,6 +46,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeID := sanitizeVolumeID(req.GetName())
 	bucketName := volumeID
 	prefix := ""
+
+	for k, v := range params {
+		glog.V(3).Infof("create volume:" + k + ":" + v)
+	}
+	glog.V(3).Infof("capacity:" + strconv.FormatInt(capacityBytes, 10))
+	glog.V(3).Infof("volumeId:" + volumeID + ":bucketName:" + bucketName)
 
 	// check if bucket name is overridden
 	if params[mounter.BucketKey] != "" {
@@ -84,6 +91,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
+	glog.V(3).Infof("bucket name:" + bucketName + ":prefix" + prefix)
 	if err = client.CreatePrefix(bucketName, prefix); err != nil {
 		return nil, fmt.Errorf("failed to create prefix %s: %v", prefix, err)
 	}
@@ -136,7 +144,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if err := client.RemovePrefix(bucketName, prefix); err != nil {
 			deleteErr = fmt.Errorf("unable to remove prefix: %w", err)
 		}
-		glog.V(4).Infof("Prefix %s removed", prefix)
+		glog.V(4).Infof("bucket name %s Prefix %s removed", bucketName, prefix)
 	}
 
 	if deleteErr != nil {

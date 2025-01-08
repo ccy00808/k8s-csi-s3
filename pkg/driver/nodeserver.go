@@ -23,9 +23,9 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/golang/glog"
 	"github.com/yandex-cloud/k8s-csi-s3/pkg/mounter"
 	"github.com/yandex-cloud/k8s-csi-s3/pkg/s3"
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -50,7 +50,7 @@ func getMeta(bucketName, prefix string, context map[string]string) *s3.FSMeta {
 		for _, opt := range re.FindAll([]byte(mountOptStr), -1) {
 			// Unquote options
 			opt = re2.ReplaceAllFunc(opt, func(q []byte) []byte {
-				return re3.ReplaceAll(q[1 : len(q)-1], []byte("$1"))
+				return re3.ReplaceAll(q[1:len(q)-1], []byte("$1"))
 			})
 			mountOptions = append(mountOptions, string(opt))
 		}
@@ -69,6 +69,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	volumeID := req.GetVolumeId()
 	targetPath := req.GetTargetPath()
 	stagingTargetPath := req.GetStagingTargetPath()
+	glog.V(3).Infof("volume id:" + volumeID)
+	glog.V(3).Infof("targetPath:" + targetPath)
+	glog.V(3).Infof("stagingTargetPath:" + stagingTargetPath)
+	for k, v := range req.VolumeContext {
+		glog.V(3).Infof("node publish volume:" + k + ":" + v)
+	}
 
 	// Check arguments
 	if req.GetVolumeCapability() == nil {
@@ -92,6 +98,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// Staged mount is dead by some reason. Revive it
 		bucketName, prefix := volumeIDToBucketPrefix(volumeID)
 		s3, err := s3.NewClientFromSecret(req.GetSecrets())
+		glog.V(3).Infof("s3 config:" + s3.Config.AccessKeyID + ":" + s3.Config.SecretAccessKey + ":" + s3.Config.Endpoint + ":" + s3.Config.Region + ":" + s3.Config.Mounter)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize S3 client: %s", err)
 		}
